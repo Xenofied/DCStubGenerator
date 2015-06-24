@@ -1,0 +1,6 @@
+# Python artifacts:
+*.pyc
+
+# PyCharm IDE:
+.idea
+
