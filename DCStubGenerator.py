@@ -1,4 +1,4 @@
-from pandac.PandaModules import DCFile
+from pandac.PandaModules import DCFile, loadPrcFile
 import os
 
 
@@ -19,25 +19,49 @@ INDENT = '    '
 
 
 class DCStubGenerator:
-    def __init__(self, filedir):
+    def __init__(self, configFile):
+        loadPrcFile(configFile)
         self.dcfile = DCFile()
-        self.dcfile.read(filedir)
+        self.dcfile.readAll()
         self.classesTuples = []
         self.dclass2module = {}
         self.className2Fields = {}
         self.className2ImportSymbol = {}
+        self.dclass2subclass = {}
         if not self.dcfile.allObjectsValid():
             print 'There was an error reading the dcfile!'
             return
 
         for i in xrange(self.dcfile.getNumImportModules()):
+
             importModule = self.dcfile.getImportModule(i)
+            isImportClass = False
+            if '/' in importModule:
+                isImportClass = importModule
+                modules = [e+'.' for e in importModule.split('.')[:-1] if e != ""]
+                importModule = ''.join(modules)[:-1]
+
             for n in xrange(self.dcfile.getNumImportSymbols(i)):
                 symbol = self.dcfile.getImportSymbol(i, n)
                 classes = symbol.split('/')
+                subclasses = []
+                if symbol == '*':
+                    print 'Skipping import for %s. Can\'t create classes for wildcard imports!' % importModule
+                    continue
+                if isImportClass:
+                    subclass = isImportClass.split('.')[-1]
+                    subclasses = subclass.split('/')
+                    if len(subclasses) > 1:
+                        for dcClass in subclasses[1:]:
+                            subclasses[subclasses.index(dcClass)] = subclasses[0] + dcClass
+
                 if len(classes) > 1:
                     for dcClass in classes[1:]:
                         classes[classes.index(dcClass)] = classes[0] + dcClass
+
+                if isImportClass:
+                    for dcClass in classes:
+                        self.dclass2subclass[dcClass] = subclasses[classes.index(dcClass)]
 
                 self.classesTuples.append(classes)
 
@@ -47,10 +71,9 @@ class DCStubGenerator:
                 if importModule.split('.')[0] in ('direct', 'panda3d'):
                     continue
 
-                try:
-                    exec('import %s' % importModule)
-                except ImportError:
-                    self.generateModule(importModule)
+                self.validateModule(importModule)
+
+
 
         for classes in self.classesTuples:
             for dcClass in classes:
@@ -62,11 +85,18 @@ class DCStubGenerator:
 
                 try:
                     exec(importLine)
-                except ImportError:
-                    self.generateClass(importModule, dcClass)
+                except Exception as e:
+                    if isinstance(e, ImportError):
+                        print 'Generating class %s...' % dcClass
+                        self.generateClass(importModule, dcClass)
 
         for className in self.classesTuples:
             dcClass = self.dcfile.getClassByName(className[0])
+
+            if not dcClass:
+                print 'Found import for %s but no dclass defined.' % className
+                continue
+
             self.className2Fields[className[0]] = []
             for i in xrange(dcClass.getNumFields()):
                 dcField = dcClass.getField(i)
@@ -75,14 +105,50 @@ class DCStubGenerator:
                 if self.dclass2module[className[0]].split('.')[0] not in ('direct', 'panda3d'):
                     self.generateField(dcField, className[0])
 
+
+    def validateModule(self, importModule):
+        if '/' in importModule:
+            print 'FAILED FOR %s' % importModule
+
+            return
+        try:
+            exec('import %s' % importModule)
+        except:
+            self.generateModule(importModule)
+
+    def createModuleFolder(self, modulePath):
+        try:
+            os.makedirs('./' + modulePath)
+        except WindowsError:
+            folders = modulePath.split('/')[:-1]
+            if not folders:
+                return
+            nextDir = folders[0]
+            if not os.path.isdir(nextDir):
+                os.makedirs(nextDir)
+            os.chdir(nextDir)
+            if len(folders) == 1:
+                return
+            self.createModuleFolder(folders[1])
+            os.chdir('..')
+
+    def moveToModulePath(self, modulePath):
+        try:
+            os.chdir(modulePath)
+        except WindowsError:
+            directories = modulePath.split('/')
+            if os.path.isdir(directories[0]):
+                os.chdir(directories[0])
+                self.moveToModulePath(directories[1])
+
     def generateModule(self, module):
         modulePath = module.replace('.', '/')
 
         if not os.path.isdir(modulePath):
-            print 'Generating module path %s' % modulePath
-            os.makedirs('./' + modulePath)
+            self.createModuleFolder(modulePath)
 
-        os.chdir(modulePath)
+        self.moveToModulePath(modulePath)
+
         if '.' in module:
             for x in xrange(len(module.split('.'))):
                 open('./__init__.py', 'w+')
@@ -95,9 +161,14 @@ class DCStubGenerator:
 
     def generateClass(self, importModule, className):
         directory = importModule.replace('.', '/')
-        f = open(
-            directory + '/' + className + '.py', 'w+'
-        )
+        if className in self.dclass2subclass.keys():
+            f = open(
+                directory + '/' + self.dclass2subclass[className] + '.py', 'w+'
+            )
+        else:
+            f = open(
+                directory + '/' + className + '.py', 'w+'
+            )
         dcClassName = className
 
         for classdel in CLASS_DELIMITERS:
@@ -151,25 +222,16 @@ class DCStubGenerator:
             for classdel in ('AI', 'UD'):
                 if className + classdel in self.dclass2module.keys():
                     self.writeField(fileName, dcField, classDelimiter=classdel)
-                    print 'Wrote in %s' % (className + classdel)
         elif dcField.isBroadcast() and not dcField.isClsend():
             for classdel in ('AI', 'UD'):
                 if className + classdel in self.dclass2module.keys():
                     self.writeField(fileName, dcField, classDelimiter=classdel)
-                    print 'Wrote in %s' % (className + classdel)
-        elif dcField.isOwnrecv():
-            for classdel in ('AI', 'UD'):
-                if className + classdel in self.dclass2module.keys():
-                    self.writeField(fileName, dcField, classDelimiter=classdel)
-                    print 'Wrote in %s' % (className + classdel)
         elif dcField.isClsend():
             self.writeField(fileName, dcField)
-            print 'Wrote in base class %s' % className
         else:
             for classdel in ('', 'AI', 'UD'):
                 if className + classdel in self.dclass2module.keys():
                     self.writeField(fileName, dcField, classDelimiter=classdel)
-                    print 'Wrote in %s' % (className + classdel)
 
     def writeField(self, fileName, dcField, classDelimiter=''):
             f = open(
@@ -180,6 +242,9 @@ class DCStubGenerator:
             for line in lines:
                 if 'pass' in line:
                     newFile = True
+                if ('def %s' % dcField.getName()) in line:
+                    f.close()
+                    return
             if newFile:
                 del lines[-1]
             elif lines[-1] != '\n':
@@ -209,4 +274,7 @@ class DCStubGenerator:
             s.append('todo%d' % i)
         return str(tuple(s)).replace('\'', '')
 
-# DCStubGenerator('test.dc')
+
+DCStubGenerator('example.prc')
+
+

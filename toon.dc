@@ -1,0 +1,386 @@
+from toontown.toon import DistributedToon/AI/UD
+from toontown.toon import DistributedNPCToonBase/AI
+from toontown.toon import DistributedNPCToon/AI
+from toontown.toon import DistributedNPCSnowballGiver/AI
+from toontown.toon import DistributedNPCSpecialQuestGiver/AI
+from toontown.toon import DistributedNPCFlippyInToonHall/AI
+from toontown.toon import DistributedNPCScientist/AI
+from toontown.toon import DistributedNPCClerk/AI
+from toontown.toon import DistributedNPCTailor/AI
+from toontown.toon import DistributedNPCBlocker/AI
+from toontown.toon import DistributedNPCFisherman/AI
+from toontown.toon import DistributedNPCPartyPerson/AI
+from toontown.toon import DistributedNPCPetclerk/AI
+from toontown.toon import DistributedNPCKartClerk/AI
+
+
+struct GiftItem {
+  blob Item;
+  string giftTag;
+};
+
+struct gardenSpecial {
+  uint8 index;
+  uint8 count;
+};
+
+struct simpleMail {
+  uint64 msgId;
+  uint32 senderId;
+  uint16 year;
+  uint8 month;
+  uint8 day;
+  string body;
+};
+
+struct invite {
+  uint64 inviteKey;
+  uint64 partyId;
+  uint8 status;
+};
+
+struct decoration {
+  uint8 decorId;
+  uint8 x;
+  uint8 y;
+  uint8 h;
+};
+
+struct activity {
+  uint8 activityId;
+  uint8 x;
+  uint8 y;
+  uint8 h;
+};
+
+struct party {
+  uint64 partyId;
+  uint32 hostId;
+  uint16 startYear;
+  uint8 startMonth;
+  uint8 startDay;
+  uint8 startHour;
+  uint8 startMinute;
+  uint16 endYear;
+  uint8 endMonth;
+  uint8 endDay;
+  uint8 endHour;
+  uint8 endMinute;
+  uint8 isPrivate;
+  uint8 inviteTheme;
+  activity activities[];
+  decoration decors[];
+  uint8 status;
+};
+
+struct partyReply {
+  uint32 inviteeId;
+  uint8 status;
+};
+
+struct repliesForOneParty {
+  uint64 partyId;
+  partyReply partyReplies[];
+};
+
+struct publicPartyInfo {
+  uint32 shardId;
+  uint32 zoneId;
+  uint8 numberOfGuests;
+  string hostName;
+  uint8[] activityIds;
+  uint16 minLeft;
+};
+
+struct jukeboxSongInfo {
+  uint8/10 phase;
+  string fileName;
+};
+
+struct partyCloudColor {
+  uint16 cloudNumber;
+  uint8/100 r;
+  uint8/100 g;
+  uint8/100 b;
+};
+
+struct datetime {
+  uint16 year;
+  uint8 month;
+  uint8 day;
+  uint8 hour;
+  uint8 minutes;
+  uint8 seconds;
+};
+
+
+typedef int16 pair16[2];
+
+dclass DistributedToon : DistributedPlayer {
+  setWantBetaKeyQuest(uint8 = 0) required db airecv;
+  setWebAccountId(string webId = "") required airecv;
+  setDNAString(blob dnaString) required broadcast ownrecv db;
+  setGM(uint8 type = 0) required broadcast ownrecv db;
+  setMaxBankMoney(int16 maxMoney = 15000) required broadcast ownrecv db;
+  setBankMoney(int16 money = 0) required broadcast ownrecv db;
+  setMaxMoney(int16 maxMoney = 40) required broadcast ownrecv db;
+  setMoney(int16 money = 0) required broadcast ownrecv db;
+  setMaxHp(int16 hitPoints = 15) required broadcast ownrecv db;
+  setHp(int16 hp = 15) required broadcast ownrecv db;
+  toonUp(uint16 hpGained) broadcast ownrecv;
+  takeDamage(uint16 hpLost) broadcast ownrecv;
+  setBattleId(uint32 battleId = 0) required broadcast ram;
+  setExperience(blob experience = [0*14]) required broadcast db;
+  setMaxCarry(uint8 maxCarry = 20) required ownrecv db;
+  setTrackAccess(uint16 trackArray[] = [0,0,0,0,1,1,0]) required broadcast ownrecv db;
+  setTrackProgress(int8 trackId = -1, uint32 progress = 0) required ownrecv db;
+  setTrackBonusLevel(int8 trackArray[] = [-1,-1,-1,-1,-1,-1,-1]) required broadcast ownrecv db;
+  setInventory(blob inventoryNetString = [0*7, 0*7, 0*7, 0*7, 1, 0*6, 1, 0*6, 0*7]) required broadcast db;
+  setMaxNPCFriends(uint16 max = 16) required ownrecv db;
+  setNPCFriendsDict(FriendEntry NPCFriendsList[] = []) required ownrecv db;
+  setDefaultShard(uint32 shard = 0) required ownrecv broadcast db;
+  setDefaultZone(uint32 zoneId = 0) required ownrecv broadcast db;
+  setShtickerBook(blob str = []) required ownrecv db;
+  setZonesVisited(uint32 hoods[] = [ 2000 ]) required ownrecv db;
+  setHoodsVisited(uint32 hoods[] = [ 2000 ]) required ownrecv db;
+  setInterface(blob str = []) required ownrecv db;
+  setLastHood(uint32 lastHood = 0) required ownrecv broadcast db;
+  setTutorialAck(uint8 tutorialAck = 0) required ownrecv db;
+  setMaxClothes(uint32 max = 10) required ownrecv db;
+  setClothesTopsList(uint8 clothesList[] = []) required ownrecv db;
+  setClothesBottomsList(uint8 clothesList[] = []) required ownrecv db;
+  setMaxAccessories(uint32 max = 0) required ownrecv db;
+  setHatList(uint8 clothesList[] = []) required ownrecv db;
+  setGlassesList(uint8 clothesList[] = []) required ownrecv db;
+  setBackpackList(uint8 clothesList[] = []) required ownrecv db;
+  setShoesList(uint8 clothesList[] = []) required ownrecv db;
+  setHat(uint8 idx = 0, uint8 textureIdx = 0, uint8 colorIdx = 0) required broadcast db ownrecv;
+  setGlasses(uint8 idx = 0, uint8 textureIdx = 0, uint8 colorIdx = 0) required broadcast db ownrecv;
+  setBackpack(uint8 idx = 0, uint8 textureIdx = 0, uint8 colorIdx = 0) required broadcast db ownrecv;
+  setShoes(uint8 idx = 0, uint8 textureIdx = 0, uint8 colorIdx = 0) required broadcast db ownrecv;
+  setGardenSpecials(gardenSpecial specials[] = []) required ownrecv db airecv;
+  setEarnedExperience(uint16 earnedExp[]) ownrecv;
+  setTunnelIn(int16 timestamp, int16/10 endX, int16/10 x, int16/10 y, int16/100 z, int32/100 h) ownsend broadcast;
+  setTunnelOut(int16 timestamp, int16/10 startX, int16/10 startY, int16/10 x, int16/10 y, int16/100 z, int32/100 h) ownsend broadcast;
+  setAnimState(char animName[0-1024], int16/1000 animMultiplier, int16 timestamp) broadcast ram ownsend airecv;
+  setEmoteState(int16 animIndex, int16/1000 animMultiplier, int16 timestamp) broadcast ram ownsend;
+  setEmoteAccess(uint8 bits[] = [1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]) required ownrecv db;
+  setCustomMessages(uint16 customMessages[] = []) required ownrecv db;
+  setSleepAutoReply(uint32 fromId) broadcast clsend ownrecv;
+  setResistanceMessages(pair16 resistanceMessages[] = []) required ownrecv db;
+  setPetTrickPhrases(uint8 tricks[] = [0]) required ownrecv db;
+  setCatalogSchedule(uint16 currentWeek = 0, uint32 nextTime = 0) required ownrecv db;
+  setCatalog(blob monthlyCatalog = [], blob weeklyCatalog = [], blob backCatalog = []) required ownrecv db;
+  setMailboxContents(blob mailboxContents = []) required ownrecv db;
+  setDeliverySchedule(blob onOrder = []) required ownrecv db airecv;
+  setGiftSchedule(blob onGiftOrder = []) required ownrecv db airecv;
+  setAwardMailboxContents(blob awardMailboxContents = []) required ownrecv db;
+  setAwardSchedule(blob onOrder = []) required ownrecv db airecv;
+  setAwardNotify(uint8 awardNotify = 0) required ownrecv db;
+  setCatalogNotify(uint8 catalogNotify = 0, uint8 mailboxNotify = 0) required ownrecv db;
+  playSplashEffect(int16/10 x, int16/10 y, int16/10 z) broadcast ownsend;
+  setWhisperSCToontaskFrom(uint32 fromId, uint32 taskId, uint32 toNpcId, uint32 toonProgress, uint8 msgIndex) ownrecv clsend;
+  setSCToontask(uint32 taskId, uint32 toNpcId, uint32 toonProgress, uint8 msgIndex) broadcast ownsend;
+  reqSCResistance(uint16 msgIndex, uint32 nearbyPlayers[]) ownsend airecv;
+  setSCResistance(uint16 msgIndex, uint32 nearbyToons[]) broadcast ownrecv;
+  setSpeedChatStyleIndex(uint8 index = 1) required ownsend broadcast db;
+  setTrophyScore(uint16 score) broadcast ownrecv ram;
+  setTeleportAccess(uint32 teleportZoneArray[] = []) required ownrecv db;
+  checkTeleportAccess(uint16 zoneId) airecv ownsend;
+  setTeleportOverride(uint8 flag) clsend airecv;
+  battleSOS(uint32 requesterId) ownrecv clsend;
+  teleportQuery(uint32 requesterId) ownrecv clsend;
+  teleportResponse(uint32 avId, int8 available, uint32 shardId, uint32 hoodId, uint32 zoneId) ownrecv clsend;
+  teleportResponseToAI(uint32 toAvId, int8 available, uint32 shardId, uint32 hoodId, uint32 zoneId, uint32 fromAvId) ownsend airecv;
+  teleportGiveup(uint32 requesterId) ownrecv clsend;
+  teleportGreeting(uint32 avId) broadcast ownsend;
+  setCogStatus(uint32 cogStatusList[] = [1 * 32]) required ownrecv db;
+  setCogCount(uint32 cogCountList[] = [0 * 32]) required ownrecv db;
+  setCogRadar(uint8 radar[] = [0 * 4]) required ownrecv db;
+  setBuildingRadar(uint8 radar[] = [0 * 4]) required ownrecv db;
+  setCogLevels(uint8 levels[] = [0 * 4]) required broadcast ownrecv db;
+  setCogTypes(uint8 types[] = [0 * 4]) required broadcast ownrecv db;
+  setCogParts(uint32 parts[] = [0 * 4]) required broadcast ownrecv db;
+  setCogMerits(uint16 merits[] = [0 * 4]) required ownrecv db;
+  setCogIndex(int8 index) broadcast ram;
+  setDisguisePageFlag(int8 flag) ownrecv;
+  setSosPageFlag(int8 flag) ownrecv;
+  setHouseId(uint32 id = 0) required ownrecv db;
+  setQuests(uint32 flattenedQuests[] = []) required broadcast ownrecv db;
+  setQuestHistory(uint16 questList[] = []) required ownrecv db;
+  setRewardHistory(uint8 rewardTier = 0, uint16 rewardList[] = [100]) required ownrecv db;
+  setQuestCarryLimit(uint8 limit = 1) required ownrecv db;
+  requestDeleteQuest(uint32 questDesc[]) ownsend airecv;
+  setCheesyEffect(int16 effect = 0, uint32 hoodId = 0, uint32 expireTime = 0) required broadcast ownrecv db;
+  setGhostMode(uint8 flag) broadcast ownrecv ram;
+  setPosIndex(uint8 index = 0) required ownrecv db;
+  setFishCollection(uint8 genusList[] = [], uint8 speciesList[] = [], uint16 weightList[] = []) required ownrecv db;
+  setMaxFishTank(uint8 maxTank = 20) required ownrecv db;
+  setFishTank(uint8 genusList[] = [], uint8 speciesList[] = [], uint16 weightList[] = []) required ownrecv db;
+  setFishingRod(uint8 rodId = 0) required broadcast ownrecv db;
+  setFishingTrophies(uint8 trophyList[] = []) required ownrecv db;
+  setFlowerCollection(uint8 speciesList[] = [], uint8 varietyList[] = []) required ownrecv db;
+  setFlowerBasket(uint8 speciesList[] = [], uint8 varietyList[] = []) required ownrecv db;
+  setMaxFlowerBasket(uint8 maxFlowerBasket = 20) required ownrecv db;
+  setGardenTrophies(uint8 trophyList[] = []) required ownrecv db;
+  setShovel(uint8 shovelId = 0) required broadcast ownrecv db;
+  setShovelSkill(uint32 skillLevel = 0) required ownrecv db;
+  setWateringCan(uint8 wateringCanId = 0) required broadcast ownrecv db;
+  setWateringCanSkill(uint32 skillLevel = 0) required ownrecv db;
+  promoteShovel(uint8 shovel) ownrecv;
+  promoteWateringCan(uint8 wateringCan) ownrecv;
+  reactivateWater() ownrecv;
+  presentPie(int16/10 x, int16/10 y, int16/10 z, int16/10 h, int32 timestamp) broadcast ownsend;
+  tossPie(int16/10 x, int16/10 y, int16/10 z, int16/10 h, uint8 sequence, uint8 power, uint8 throwType, int32 timestamp) broadcast ownsend;
+  pieSplat(int16/10 x, int16/10 y, int16/10 z, uint8 sequence, uint8 pieCode, int32 timestamp32) broadcast ownsend;
+  setPieType(uint8 pieType) broadcast ownrecv ram;
+  setNumPies(uint16 numPies) broadcast ownrecv ram;
+  setPieThrowType(uint8 throwType) broadcast ownrecv ram;
+  setHealthDisplay(uint8 mode) broadcast ownrecv ram;
+  catalogGenClothes(uint32 avId) broadcast ownrecv;
+  catalogGenAccessories(uint32 avId) broadcast ownrecv;
+  setPetId(uint32 petId = 0) required broadcast ownrecv db;
+  setPetMovie(uint32 petId, uint8 flag) ownsend airecv;
+  setPetTutorialDone(uint8 bDone = 0) required ownsend airecv db;
+  setFishBingoTutorialDone(uint8 bDone = 0) required ownsend airecv db;
+  setFishBingoMarkTutorialDone(uint8 bDone = 0) required ownsend airecv db;
+  setKartBodyType(int8 bodyType = -1) required broadcast ownrecv db;
+  setKartBodyColor(int8 bodyColor = -1) required broadcast ownrecv db;
+  setKartAccessoryColor(int8 accColor = -1) required broadcast ownrecv db;
+  setKartEngineBlockType(int8 ebType = -1) required broadcast ownrecv db;
+  setKartSpoilerType(int8 spType = -1) required broadcast ownrecv db;
+  setKartFrontWheelWellType(int8 fwwType = -1) required broadcast ownrecv db;
+  setKartBackWheelWellType(int8 bwwType = -1) required broadcast ownrecv db;
+  setKartRimType(int8 rimsType = -1) required broadcast ownrecv db;
+  setKartDecalType(int8 decalType = -1) required broadcast ownrecv db;
+  updateKartDNAField(int8 dnaField, int8 fieldValue) ownsend airecv;
+  addOwnedAccessory(int8 accessoryId) ownsend airecv;
+  removeOwnedAccessory(int8 accessoryId) ownsend airecv;
+  setTickets(uint32 numTickets = 200) required broadcast ownrecv db;
+  setKartingHistory(uint8 history[16] = [0*16]) required ownrecv db;
+  setKartingTrophies(uint8 trophyList[33] = [0*33]) required ownrecv db;
+  setKartingPersonalBest(uint32/1000 bestTimes[6] = [0*6]) required ownrecv db;
+  setKartingPersonalBest2(uint32/1000 bestTimes2[12] = [0*12]) required ownrecv db;
+  setKartAccessoriesOwned(int8 accessories[16] = [-1*16]) required broadcast ownrecv db;
+  setCurrentKart(uint32 avId) broadcast ownrecv ram;
+  squish(uint8 damage) ownsend airecv;
+  announceBingo() broadcast ownrecv;
+  trickOrTreatTargetMet(uint32 beanAmount) ownrecv;
+  trickOrTreatMilestoneMet() ownrecv;
+  winterCarolingTargetMet(uint32 beanAmount) ownrecv;
+  setCogSummonsEarned(uint8 cogSummonsEarned[] = [0*32]) required ownrecv db;
+  reqCogSummons(char type[0-256], uint32 suitIndex) ownsend airecv;
+  cogSummonsResponse(string returnCode, uint32 suitIndex, uint32 doId) ownrecv;
+  reqUseSpecial(int32 special) ownsend airecv;
+  useSpecialResponse(string returnCode) ownrecv;
+  setGardenStarted(uint8 bStarted = 0) required ownrecv db;
+  sendToGolfCourse(uint32 zoneId) ownrecv;
+  setGolfHistory(uint16 history[18] = [0*18]) required ownrecv db;
+  setPackedGolfHoleBest(uint8 packedHoleBest[18] = [0*18]) required ownrecv db;
+  setGolfCourseBest(uint8 courseBest[3] = [0*3]) required ownrecv db;
+  setUnlimitedSwing(uint8 unlimitedSwing) broadcast ownrecv ram;
+  logSuspiciousEvent(char eventName[0-1024]) ownsend airecv;
+  logMessage(char message[0-1024]) ownsend airecv;
+  forceLogoutWithNotify() ownrecv;
+  setPinkSlips(uint8 pinkSlips = 0) required ownrecv db;
+  setNametagStyle(uint8 nametagStyle = 100) required broadcast ownrecv db;
+  setMail(simpleMail mail[]) ownrecv;
+  setNumMailItems(uint32 numMailItems) airecv;
+  setSimpleMailNotify(uint8 simpleMailNotify) ownrecv airecv;
+  setInvites(invite invites[]) ownrecv airecv ram;
+  setPartiesInvitedTo(party partiesInvitedTo[]) ownrecv airecv ram;
+  setHostedParties(party hostedParties[]) ownrecv airecv ram;
+  setPartyReplies(repliesForOneParty replies[]) ownrecv airecv ram;
+  updateInvite(uint64 inviteKey, uint8 newStatus) ownrecv airecv;
+  updateReply(uint64 partyId, uint64 inviteeId, uint8 newStatus) ownrecv airecv;
+  setPartyCanStart(uint64 partyId) ownrecv airecv;
+  setPartyStatus(uint64 partyId, uint8 newStatus) ownrecv airecv;
+  announcePartyStarted(uint64 partyId) ownrecv;
+  setNeverStartedPartyRefunded(uint64 partyId, int8 newStatus, uint16 refund) ownrecv;
+  setModuleInfo(string info[]) airecv clsend;
+  setDISLname(string name) ram;
+  setDISLid(uint32 id) ram db airecv;
+  flagAv(uint32 avId, uint16 reason, string params[]) airecv ownsend;
+  magicFanfare() broadcast;
+  magicTeleportRequest(uint32 requesterId) ownrecv;
+  magicTeleportResponse(uint32 requesterId, uint32 hoodId) ownsend airecv;
+  magicTeleportInitiate(uint32 hoodId, uint32 zoneId) ownrecv;
+  keepAlive() ownsend airecv;
+  setLastSeen(uint32 timestamp = 0) required db;
+};
+
+dclass DistributedNPCToonBase : DistributedNode {
+  setName(string name) required broadcast ram;
+  setDNAString(blob dnaString) required broadcast ram;
+  setPositionIndex(uint8 posIndex) required broadcast ram;
+  setAnimState(string animName, int16/1000 animMultiplier, int16 timestamp) broadcast ram;
+  setPageNumber(int16 paragraph, int8 pageNumber, int16 timestamp) broadcast ram clsend;
+  avatarEnter() airecv clsend;
+  freeAvatar();
+};
+
+dclass DistributedNPCToon : DistributedNPCToonBase {
+  setMovie(uint8 mode, uint32 npcId, uint32 avId, uint16 quests[], int16 timestamp) broadcast ram;
+  setMovieDone() airecv clsend;
+  chooseQuest(uint16 questId) airecv clsend;
+  chooseTrack(int8 trackId) airecv clsend;
+};
+
+dclass DistributedNPCSnowballGiver : DistributedNPCToonBase {
+  gaveSnowballs(uint32 npcId, uint32 avId, uint8 sbPhraseId) broadcast ram;
+};
+
+dclass DistributedNPCSpecialQuestGiver : DistributedNPCToonBase {
+  setMovie(uint8 mode, uint32 npcId, uint32 avId, uint16 quests[], int16 timestamp) broadcast ram;
+  setMovieDone() airecv clsend;
+  chooseQuest(uint16 questId) airecv clsend;
+  chooseTrack(int8 trackId) airecv clsend;
+};
+
+dclass DistributedNPCFlippyInToonHall : DistributedNPCToon {
+};
+
+dclass DistributedNPCScientist : DistributedNPCToonBase {
+  setChat(char topic[0-1024], uint8 partPos, uint32 partId, uint8 progress, uint8 flags) ownsend broadcast;
+};
+
+dclass DistributedNPCClerk : DistributedNPCToonBase {
+  setMovie(uint8 mode, uint32 npcId, uint32 avId, int16 timestamp) broadcast ram;
+  setInventory(blob inventoryNetString, int16, uint8) airecv clsend;
+};
+
+dclass DistributedNPCTailor : DistributedNPCToonBase {
+  setMovie(uint8 mode, uint32 npcId, uint32 avId, int16 timestamp) broadcast ram;
+  setDNA(blob dna, int8 black, uint8 heads) airecv clsend;
+  setCustomerDNA(uint32 avId, blob dnaString) broadcast ram;
+};
+
+dclass DistributedNPCBlocker : DistributedNPCToonBase {
+  setMovie(uint8 mode, uint32 npcId, uint32 avId, int16 timestamp) broadcast ram;
+};
+
+dclass DistributedNPCFisherman : DistributedNPCToonBase {
+  setMovie(uint8 mode, uint32 npcId, uint32 avId, uint32 extraArgs[], int16 timestamp) broadcast ram;
+  completeSale(uint8 sell) airecv clsend;
+};
+
+dclass DistributedNPCPartyPerson : DistributedNPCToonBase {
+  setMovie(uint8 mode, uint32 npcId, uint32 avId, uint32 extraArgs[], int16 timestamp) broadcast ram;
+  answer(uint8 wantsToPlan) airecv clsend;
+};
+
+dclass DistributedNPCPetclerk : DistributedNPCToonBase {
+  setMovie(uint8 mode, uint32 npcId, uint32 avId, uint32 extraArgs[], int16 timestamp) broadcast ram;
+  setPetSeeds(uint32 petSeeds[]);
+  petAdopted(uint8 petNum, uint32 nameIndex) airecv clsend;
+  petReturned() airecv clsend;
+  fishSold() airecv clsend;
+  transactionDone() airecv clsend;
+};
+
+dclass DistributedNPCKartClerk : DistributedNPCToonBase {
+  setMovie(uint8 mode, uint32 npcId, uint32 avId, uint32 extraArgs[], int16 timestamp) broadcast ram;
+  buyKart(uint8 whichKart) airecv clsend;
+  buyAccessory(uint8 whichAcc) airecv clsend;
+  transactionDone() airecv clsend;
+};
