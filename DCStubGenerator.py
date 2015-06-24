@@ -209,4 +209,4 @@ class DCStubGenerator:
             s.append('todo%d' % i)
         return str(tuple(s)).replace('\'', '')
 
-DCStubGenerator('test.dc')
+# DCStubGenerator('test.dc')
