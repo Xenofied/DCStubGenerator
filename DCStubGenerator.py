@@ -262,6 +262,8 @@ class DCStubGenerator:
             if not numargs:
                 f.close()
                 return
+            if self.getParameterList(dcField) == ['']:
+                numargs = 0
             print 'Writing field %s for %s...' % (dcField.getName(), dcField.getClass().getName() + classDelimiter)
             lines.append(INDENT + 'def %s%s:\n' % (dcField.getName(), self.getTodoString(numargs)))
             lines.append(INDENT + INDENT + '#' + str(dcField))
@@ -277,6 +279,8 @@ class DCStubGenerator:
             return ''
 
     def getTodoString(self, n):
+        if n == 0:
+            return '()'
         if n == 1:
             return '(todo0)'
         s = []
