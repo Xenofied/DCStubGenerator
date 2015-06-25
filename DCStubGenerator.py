@@ -1,4 +1,4 @@
-from pandac.PandaModules import DCFile, loadPrcFile
+from pandac.PandaModules import DCFile, loadPrcFile, ConfigVariableBool
 import os
 import re
 
@@ -22,6 +22,13 @@ INDENT = '    '
 class DCStubGenerator:
     def __init__(self, configFile):
         loadPrcFile(configFile)
+        self.ignoreTypes = {
+            '': ConfigVariableBool('ignore-client', True).getValue(),
+            'AI': ConfigVariableBool('ignore-AI', False).getValue(),
+            'UD': ConfigVariableBool('ignore-UD', False).getValue(),
+            'OV': ConfigVariableBool('ignore-OV', True).getValue()
+        }
+        self.wantOverwrite = ConfigVariableBool('overwrite-files', False).getValue()
         self.dcfile = DCFile()
         self.dcfile.readAll()
         self.classesTuples = []
@@ -29,6 +36,7 @@ class DCStubGenerator:
         self.className2Fields = {}
         self.className2ImportSymbol = {}
         self.dclass2subclass = {}
+        self.ignoredClasses = []
         if not self.dcfile.allObjectsValid():
             print 'There was an error reading the dcfile!'
             return
@@ -81,13 +89,18 @@ class DCStubGenerator:
                 if importModule.split('.')[0] in ('direct', 'panda3d'):
                     continue
 
+                generated = False
                 try:
-                    exec(importLine)
+                    exec importLine
                 except Exception as e:
                     if isinstance(e, ImportError):
                         if dcClass in e.message:
-                            print 'Generating class %s...' % dcClass
-                            self.generateClass(importModule, dcClass)
+                            self.validateClass(dcClass, importModule)
+                            generated = True
+                finally:
+                    if self.wantOverwrite and not generated and dcClass not in self.ignoredClasses:
+                        self.validateClass(dcClass, importModule)
+
 
         for className in self.classesTuples:
             dcClass = self.dcfile.getClassByName(className[0])
@@ -160,6 +173,22 @@ class DCStubGenerator:
     def writeInitFile(self, module):
         open('./' + module + '/__init__.py', 'w+')
 
+    def validateClass(self, dcClass, importModule):
+        for classdel in CLASS_DELIMITERS:
+            if self.ignoreTypes[classdel] is True:
+                if classdel in dcClass:
+                    self.ignoredClasses.append(dcClass)
+
+        if self.ignoreTypes[''] is True:
+            if self.isClientFile(dcClass):
+                self.ignoredClasses.append(dcClass)
+
+        if dcClass in self.ignoredClasses:
+            return
+
+        print 'Generating class %s...' % dcClass
+        self.generateClass(importModule, dcClass)
+
     def generateClass(self, importModule, className):
         directory = importModule.replace('.', '/')
         if className in self.dclass2subclass.keys():
@@ -227,16 +256,22 @@ class DCStubGenerator:
         fileName = self.dclass2module[className].replace('.', '/') + '/' + className
         if dcField.isAirecv():
             for classdel in ('AI', 'UD'):
+                if self.ignoreTypes[classdel] is True:
+                    continue
                 if className + classdel in self.dclass2module.keys():
                     self.writeField(fileName, dcField, classDelimiter=classdel)
         elif dcField.isBroadcast() and not dcField.isClsend():
             for classdel in ('AI', 'UD'):
+                if self.ignoreTypes[classdel] is True:
+                    continue
                 if className + classdel in self.dclass2module.keys():
                     self.writeField(fileName, dcField, classDelimiter=classdel)
-        elif dcField.isClsend():
+        elif dcField.isClsend() and self.ignoreTypes[''] is False:
             self.writeField(fileName, dcField)
         else:
             for classdel in ('', 'AI', 'UD'):
+                if self.ignoreTypes[classdel] is True:
+                    continue
                 if className + classdel in self.dclass2module.keys():
                     self.writeField(fileName, dcField, classDelimiter=classdel)
 
@@ -251,8 +286,9 @@ class DCStubGenerator:
                     if 'pass' in lines[i + 1]:
                         newFile = True
                 if 'def %s' % dcField.getName() in line:
-                    f.close()
-                    return
+                    if not self.wantOverwrite:
+                        f.close()
+                        return
 
             if newFile:
                 del lines[-1]
@@ -288,6 +324,8 @@ class DCStubGenerator:
             s.append('todo%d' % i)
         return str(tuple(s)).replace('\'', '')
 
+    def isClientFile(self, className):
+        return 'AI' not in className and 'UD' not in className
 
 DCStubGenerator('example.prc')
 
