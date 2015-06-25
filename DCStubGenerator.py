@@ -33,7 +33,6 @@ class DCStubGenerator:
             return
 
         for i in xrange(self.dcfile.getNumImportModules()):
-
             importModule = self.dcfile.getImportModule(i)
             isImportClass = False
             if '/' in importModule:
@@ -73,8 +72,6 @@ class DCStubGenerator:
 
                 self.validateModule(importModule)
 
-
-
         for classes in self.classesTuples:
             for dcClass in classes:
                 importModule = self.dclass2module[dcClass]
@@ -87,8 +84,9 @@ class DCStubGenerator:
                     exec(importLine)
                 except Exception as e:
                     if isinstance(e, ImportError):
-                        print 'Generating class %s...' % dcClass
-                        self.generateClass(importModule, dcClass)
+                        if dcClass in e.message:
+                            print 'Generating class %s...' % dcClass
+                            self.generateClass(importModule, dcClass)
 
         for className in self.classesTuples:
             dcClass = self.dcfile.getClassByName(className[0])
@@ -247,10 +245,11 @@ class DCStubGenerator:
             )
             newFile = False
             lines = f.readlines()
-            for line in lines:
-                if 'pass' in line:
-                    newFile = True
-                if ('def %s' % dcField.getName()) in line:
+            for line, i in zip(lines, xrange(len(lines))):
+                if 'class %s' % dcField.getClass().getName() in line:
+                    if 'pass' in lines[i + 1]:
+                        newFile = True
+                if 'def %s' % dcField.getName() in line:
                     f.close()
                     return
             if newFile:
