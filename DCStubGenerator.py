@@ -1,5 +1,6 @@
 from pandac.PandaModules import DCFile, loadPrcFile
 import os
+import re
 
 
 CLASS_DELIMITERS = [
@@ -95,7 +96,7 @@ class DCStubGenerator:
                 print 'Found import for %s but no dclass defined.' % className
                 continue
 
-            print 'Writing fields for dclass %s...' % className[0]
+            print 'Reading fields for dclass %s...' % className[0]
             self.className2Fields[className[0]] = []
             for i in xrange(dcClass.getNumFields()):
                 dcField = dcClass.getField(i)
@@ -252,6 +253,7 @@ class DCStubGenerator:
                 if 'def %s' % dcField.getName() in line:
                     f.close()
                     return
+
             if newFile:
                 del lines[-1]
             elif lines[-1] != '\n':
@@ -260,6 +262,7 @@ class DCStubGenerator:
             if not numargs:
                 f.close()
                 return
+            print 'Writing field %s for %s...' % (dcField.getName(), dcField.getClass().getName() + classDelimiter)
             lines.append(INDENT + 'def %s%s:\n' % (dcField.getName(), self.getTodoString(numargs)))
             lines.append(INDENT + INDENT + '#' + str(dcField))
             lines.append(INDENT + INDENT + 'return\n')
@@ -269,7 +272,7 @@ class DCStubGenerator:
 
     def getParameterList(self, dcField):
         try:
-            return str(dcField).split(dcField.getName() + '(')[1].split(')')[0].split(',')
+            return re.sub('\[.*]', '', str(dcField)).split(dcField.getName() + '(')[1].split(')')[0].split(',')
         except:
             return ''
 
