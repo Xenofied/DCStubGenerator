@@ -97,6 +97,7 @@ class DCStubGenerator:
                 print 'Found import for %s but no dclass defined.' % className
                 continue
 
+            print 'Writing fields for dclass %s...' % className[0]
             self.className2Fields[className[0]] = []
             for i in xrange(dcClass.getNumFields()):
                 dcField = dcClass.getField(i)
@@ -104,6 +105,7 @@ class DCStubGenerator:
 
                 if self.dclass2module[className[0]].split('.')[0] not in ('direct', 'panda3d'):
                     self.generateField(dcField, className[0])
+        print 'Done.'
 
 
     def validateModule(self, importModule):
@@ -176,30 +178,34 @@ class DCStubGenerator:
                 dcClassName = className.split(classdel)[0]
 
         dcClass = self.dcfile.getClassByName(dcClassName)
+
         parentClasses =[]
         file = ""
-        for i in xrange(dcClass.getNumParents()):
-            parentClass = dcClass.getParent(i).getName()
+        if dcClass:
+            for i in xrange(dcClass.getNumParents()):
+                parentClass = dcClass.getParent(i).getName()
 
-            for classdel in CLASS_DELIMITERS:
-                if classdel in className:
-                    parentClass += classdel
+                for classdel in CLASS_DELIMITERS:
+                    if classdel in className:
+                        parentClass += classdel
 
-            if parentClass not in self.dclass2module.keys() and parentClass not in IMPORTS:
-                print 'Couldn\'t find defined import %s!' % parentClass
-                baseClass = self.removeDelimiter(parentClass)
-                if baseClass in IMPORTS:
-                    parentModule = IMPORTS.get(baseClass)
-                    print 'Using assumption parent module %s for parent class %s!' % (parentModule, parentClass)
-                    parentClasses.append(parentClass)
+                if parentClass not in self.dclass2module.keys() and parentClass not in IMPORTS:
+                    print 'Couldn\'t find defined import %s!' % parentClass
+                    baseClass = self.removeDelimiter(parentClass)
+                    if baseClass in IMPORTS:
+                        parentModule = IMPORTS.get(baseClass)
+                        print 'Using assumption parent module %s for parent class %s!' % (parentModule, parentClass)
+                        parentClasses.append(parentClass)
+                    else:
+                        continue
+
                 else:
-                    continue
+                    parentClasses.append(parentClass)
+                    parentModule = IMPORTS.get(parentClass, self.dclass2module.get(parentClass))
 
-            else:
-                parentClasses.append(parentClass)
-                parentModule = IMPORTS.get(parentClass, self.dclass2module.get(parentClass))
-
-            file += 'from ' + parentModule + '.' + parentClass + ' import ' + parentClass + '\n'
+                file += 'from ' + parentModule + '.' + parentClass + ' import ' + parentClass + '\n'
+        else:
+            print 'Couldn\'t find dclass for %s.' % dcClassName
 
         file += '\n'
         file += 'class %s%s:\n' % (className, self.formatParentClasses(parentClasses))
@@ -210,7 +216,9 @@ class DCStubGenerator:
 
     def formatParentClasses(self, parentClasses):
         if len(parentClasses) == 1:
-            return '(%s)' % parentClasses[0]
+            if parentClasses:
+                return '(%s)' % parentClasses[0]
+            return '()'
         return str(tuple(parentClasses)).replace('\'', '')
 
     def removeDelimiter(self, className):
