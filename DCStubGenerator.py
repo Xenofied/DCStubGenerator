@@ -29,6 +29,7 @@ class DCStubGenerator:
             'OV': ConfigVariableBool('ignore-OV', True).getValue()
         }
         self.wantOverwrite = ConfigVariableBool('overwrite-files', False).getValue()
+        self.generateNonImportDclasses = ConfigVariableBool('generate-non-import-dclasses', False).getValue()
         self.dcfile = DCFile()
         self.dcfile.readAll()
         self.classesTuples = []
@@ -41,6 +42,23 @@ class DCStubGenerator:
             print 'There was an error reading the dcfile!'
             return
 
+
+        self.readImports()
+
+        if self.generateNonImportDclasses:
+            self.readDclasses()
+            if not os.path.isdir('output'):
+                os.makedirs('./output')
+                os.chdir('output')
+            else:
+                os.chdir('output')
+
+        self.readClasses()
+        self.readFields()
+        print 'Done.'
+
+
+    def readImports(self):
         for i in xrange(self.dcfile.getNumImportModules()):
             importModule = self.dcfile.getImportModule(i)
             isImportClass = False
@@ -81,13 +99,17 @@ class DCStubGenerator:
 
                 self.validateModule(importModule)
 
+    def readClasses(self):
         for classes in self.classesTuples:
             for dcClass in classes:
-                importModule = self.dclass2module[dcClass]
-                importLine = 'from %s import %s' % (importModule, dcClass)
+                importModule = self.dclass2module.get(dcClass)
+                if not importModule:
+                    importLine = 'import %s' % (dcClass)
+                else:
+                    importLine = 'from %s import %s' % (importModule, dcClass)
 
-                if importModule.split('.')[0] in ('direct', 'panda3d'):
-                    continue
+                    if importModule.split('.')[0] in ('direct', 'panda3d'):
+                        continue
 
                 generated = False
                 try:
@@ -101,7 +123,16 @@ class DCStubGenerator:
                     if self.wantOverwrite and not generated and dcClass not in self.ignoredClasses:
                         self.validateClass(dcClass, importModule)
 
+    def readDclasses(self):
+        for i in xrange(self.dcfile.getNumClasses()):
+            dclass = self.dcfile.getClass(i)
+            if not dclass.isStruct():
+                classes = [dclass.getName(),
+                           dclass.getName() + 'AI']
+                self.classesTuples.append(classes)
+        print self.classesTuples
 
+    def readFields(self):
         for className in self.classesTuples:
             dcClass = self.dcfile.getClassByName(className[0])
 
@@ -115,10 +146,12 @@ class DCStubGenerator:
                 dcField = dcClass.getField(i)
                 self.className2Fields[className[0]].append(dcField)
 
+                if self.generateNonImportDclasses:
+                    self.generateField(dcField, className[0])
+                    continue
+
                 if self.dclass2module[className[0]].split('.')[0] not in ('direct', 'panda3d'):
                     self.generateField(dcField, className[0])
-        print 'Done.'
-
 
     def validateModule(self, importModule):
         if '/' in importModule:
@@ -190,7 +223,11 @@ class DCStubGenerator:
         self.generateClass(importModule, dcClass)
 
     def generateClass(self, importModule, className):
-        directory = importModule.replace('.', '/')
+        if not importModule and self.generateNonImportDclasses:
+            directory = '.'
+        else:
+            directory = importModule.replace('.', '/')
+
         if className in self.dclass2subclass.keys():
             f = open(
                 directory + '/' + self.dclass2subclass[className] + '.py', 'w+'
@@ -253,26 +290,40 @@ class DCStubGenerator:
         return className[:-2]
 
     def generateField(self, dcField, className):
-        fileName = self.dclass2module[className].replace('.', '/') + '/' + className
+        if className not in self.dclass2module and self.generateNonImportDclasses:
+            fileName = className
+        else:
+            fileName = self.dclass2module[className].replace('.', '/') + '/' + className
         if dcField.isAirecv():
             for classdel in ('AI', 'UD'):
                 if self.ignoreTypes[classdel] is True:
                     continue
+
                 if className + classdel in self.dclass2module.keys():
                     self.writeField(fileName, dcField, classDelimiter=classdel)
+                elif self.generateNonImportDclasses and os.path.isfile(className + classdel + '.py'):
+                    self.writeField(fileName, dcField, classDelimiter=classdel)
+                
         elif dcField.isBroadcast() and not dcField.isClsend():
             for classdel in ('AI', 'UD'):
                 if self.ignoreTypes[classdel] is True:
                     continue
+
                 if className + classdel in self.dclass2module.keys():
                     self.writeField(fileName, dcField, classDelimiter=classdel)
+                elif self.generateNonImportDclasses and os.path.isfile(className + classdel + '.py'):
+                    self.writeField(fileName, dcField, classDelimiter=classdel)
+
         elif dcField.isClsend() and self.ignoreTypes[''] is False:
             self.writeField(fileName, dcField)
         else:
             for classdel in ('', 'AI', 'UD'):
                 if self.ignoreTypes[classdel] is True:
                     continue
+
                 if className + classdel in self.dclass2module.keys():
+                    self.writeField(fileName, dcField, classDelimiter=classdel)
+                elif self.generateNonImportDclasses and os.path.isfile(className + classdel + '.py'):
                     self.writeField(fileName, dcField, classDelimiter=classdel)
 
     def writeField(self, fileName, dcField, classDelimiter=''):

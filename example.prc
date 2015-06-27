@@ -11,3 +11,7 @@ ignore-UD #f
 ignore-OV #f
 
 overwrite-files #f
+
+
+# Enabling this generates a file for each dclass, even if they aren't imported.
+generate-non-import-dclasses #f
