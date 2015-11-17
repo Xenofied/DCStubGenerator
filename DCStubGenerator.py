@@ -30,6 +30,7 @@ class DCStubGenerator:
         }
         self.wantOverwrite = ConfigVariableBool('overwrite-files', False).getValue()
         self.generateNonImportDclasses = ConfigVariableBool('generate-non-import-dclasses', False).getValue()
+        self.wantInit = ConfigVariableBool('generate-init', False).getValue()
         self.dcfile = DCFile()
         self.dcfile.readAll()
         self.classesTuples = []
@@ -41,7 +42,6 @@ class DCStubGenerator:
         if not self.dcfile.allObjectsValid():
             print 'There was an error reading the dcfile!'
             return
-
 
         self.readImports()
 
@@ -228,6 +228,9 @@ class DCStubGenerator:
         else:
             directory = importModule.replace('.', '/')
 
+        if not os.path.isdir(directory):
+            os.makedirs(directory)
+
         if className in self.dclass2subclass.keys():
             f = open(
                 directory + '/' + self.dclass2subclass[className] + '.py', 'w+'
@@ -274,10 +277,44 @@ class DCStubGenerator:
 
         file += '\n'
         file += 'class %s%s:\n' % (className, self.formatParentClasses(parentClasses))
-        file += INDENT + 'pass\n'
+        file += '\n'
+        if self.wantInit:
+            file += INDENT + 'def __init__(self):\n'
+            numFields = dcClass.getNumFields()
+            for i in xrange(numFields):
+                dcField = dcClass.getField(i)
+                if dcField.hasDefaultValue():
+                    defaultValue = self.getDefaultValueFromField(dcField)
+                else:
+                    defaultValue = 'None'
+
+                if dcField.getName().startswith('set'):
+                    file += INDENT + INDENT + 'self.' + dcField.getName()[3].lower() + dcField.getName()[4:] + ' = '\
+                            + defaultValue
+                    file += '\n'
+            file += INDENT + INDENT + 'return\n'
 
         f.write(file)
         f.close()
+
+    def getDefaultValueFromField(self, f):
+        valueString = f.formatData(f.getDefaultValue())
+        try:
+            data = valueString.split(' = ')[1].replace(')', '')
+        except:
+            return 'None'
+
+        if '[' in data:
+            return '[]'
+        elif '<' in data:
+            return 'None'
+        else:
+            try:
+                int(data)
+                return '0'
+            except:
+                pass
+            return 'None'
 
     def formatParentClasses(self, parentClasses):
         if len(parentClasses) == 1:
@@ -330,20 +367,14 @@ class DCStubGenerator:
             f = open(
                 fileName + classDelimiter + '.py', 'r+'
             )
-            newFile = False
             lines = f.readlines()
             for line, i in zip(lines, xrange(len(lines))):
-                if 'class %s' % dcField.getClass().getName() in line:
-                    if 'pass' in lines[i + 1]:
-                        newFile = True
                 if 'def %s' % dcField.getName() in line:
                     if not self.wantOverwrite:
                         f.close()
                         return
 
-            if newFile:
-                del lines[-1]
-            elif lines[-1] != '\n':
+            if lines[-1] != '\n':
                 lines.append('\n')
             numargs = len(self.getParameterList(dcField))
             if not numargs:
@@ -367,10 +398,10 @@ class DCStubGenerator:
 
     def getTodoString(self, n):
         if n == 0:
-            return '()'
+            return '(self)'
         if n == 1:
-            return '(todo0)'
-        s = []
+            return '(self, todo0)'
+        s = ['self']
         for i in xrange(n):
             s.append('todo%d' % i)
         return str(tuple(s)).replace('\'', '')

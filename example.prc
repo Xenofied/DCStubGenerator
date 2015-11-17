@@ -15,3 +15,6 @@ overwrite-files #f
 
 # Enabling this generates a file for each dclass, even if they aren't imported.
 generate-non-import-dclasses #f
+
+# Enabling this makes the writer write  __init__ methods for classes.
+generate-init #t
